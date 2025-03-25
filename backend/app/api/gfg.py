@@ -2,10 +2,9 @@ from fastapi import APIRouter, HTTPException
 import requests
 from pydantic import BaseModel
 import logging
+import time
 from bs4 import BeautifulSoup
 import re
-import time
-from functools import lru_cache
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -22,7 +21,6 @@ class GFGStats(BaseModel):
     profile_url: str
 
 @router.post("/gfg/stats", response_model=GFGStats)
-@lru_cache(maxsize=128)
 async def get_gfg_stats(user: GFGUser):
     try:
         logger.debug(f"Fetching GFG stats for: {user.username}")
@@ -40,12 +38,13 @@ async def get_gfg_stats(user: GFGUser):
         # Add a small delay to prevent rate limiting
         time.sleep(0.5)
         
-        response = requests.get(url, headers=headers, timeout=3)
+        response = requests.get(url, headers=headers, timeout=5)
         
         if response.status_code != 200:
+            logger.error(f"GFG API Error: {response.text}")
             if response.status_code == 404:
                 raise HTTPException(status_code=404, detail=f"User '{user.username}' not found on GFG")
-            raise HTTPException(status_code=response.status_code, detail="Failed to fetch GFG data")
+            raise HTTPException(status_code=response.status_code, detail=f"GFG API Error: {response.text}")
 
         soup = BeautifulSoup(response.text, 'html.parser')
         
@@ -68,6 +67,7 @@ async def get_gfg_stats(user: GFGUser):
         )
 
     except requests.exceptions.Timeout:
+        logger.error("Request to GFG timed out")
         raise HTTPException(status_code=504, detail="Request to GFG timed out")
     except Exception as e:
         logger.error(f"Error fetching GFG stats: {str(e)}")

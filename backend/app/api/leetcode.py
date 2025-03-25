@@ -4,7 +4,6 @@ import json
 from pydantic import BaseModel
 import logging
 import time
-from functools import lru_cache
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -24,7 +23,6 @@ class LeetCodeStats(BaseModel):
     profile_url: str
 
 @router.post("/leetcode/stats", response_model=LeetCodeStats)
-@lru_cache(maxsize=128)
 async def get_leetcode_stats(user: LeetCodeUser):
     try:
         logger.debug(f"Fetching LeetCode stats for: {user.username}")
@@ -63,10 +61,7 @@ async def get_leetcode_stats(user: LeetCodeUser):
         # Add a small delay to prevent rate limiting
         time.sleep(0.5)
         
-        response = requests.post(url, json=payload, headers=headers, timeout=3)
-        logger.debug(f"LeetCode API Response Status: {response.status_code}")
-        logger.debug(f"LeetCode API Response Headers: {dict(response.headers)}")
-        logger.debug(f"LeetCode API Response Body: {response.text}")
+        response = requests.post(url, json=payload, headers=headers, timeout=5)
         
         if response.status_code != 200:
             logger.error(f"LeetCode API Error: {response.text}")
@@ -75,7 +70,10 @@ async def get_leetcode_stats(user: LeetCodeUser):
             raise HTTPException(status_code=response.status_code, detail=f"LeetCode API Error: {response.text}")
 
         data = response.json()
-        logger.debug(f"LeetCode Response JSON: {json.dumps(data, indent=2)}")
+        
+        if "errors" in data:
+            logger.error(f"GraphQL Errors: {data['errors']}")
+            raise HTTPException(status_code=400, detail=f"GraphQL Error: {data['errors']}")
 
         user_data = data.get("data", {}).get("matchedUser")
         if not user_data:
