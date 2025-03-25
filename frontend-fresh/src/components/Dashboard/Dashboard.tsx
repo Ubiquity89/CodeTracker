@@ -1,299 +1,392 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
+  Typography,
+  Button,
+  Paper,
   Grid,
+  Tabs,
+  Tab,
+  CircularProgress,
+  Alert,
   Card,
   CardContent,
-  Typography,
-  ToggleButton,
-  ToggleButtonGroup,
+  CardHeader,
+  Avatar,
   IconButton,
-  LinearProgress,
+  Chip,
   Tooltip,
+  useTheme,
+  Skeleton,
 } from '@mui/material';
 import {
-  Menu as MenuIcon,
-  Close as CloseIcon,
+  TrendingUp as TrendingUpIcon,
+  TrendingDown as TrendingDownIcon,
+  Refresh as RefreshIcon,
+  Link as LinkIcon,
 } from '@mui/icons-material';
-import { motion } from 'framer-motion';
-import { Line } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip as ChartTooltip,
-  Legend,
-} from 'chart.js';
+import axios from 'axios';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  ChartTooltip,
-  Legend
-);
-
-interface Platform {
-  name: string;
-  totalSolved: number;
-  easySolved: number;
-  mediumSolved: number;
-  hardSolved: number;
-  ranking: number;
-  recentSubmissions: { date: string; count: number }[];
+interface PlatformStats {
+  total_solved: number;
+  easy_solved: number;
+  medium_solved: number;
+  hard_solved: number;
+  ranking?: number;
+  coding_score?: number;
+  profile_url: string;
 }
 
-const mockData: Record<string, Platform> = {
-  leetcode: {
-    name: 'LeetCode',
-    totalSolved: 325,
-    easySolved: 150,
-    mediumSolved: 125,
-    hardSolved: 50,
-    ranking: 15243,
-    recentSubmissions: Array.from({ length: 7 }, (_, i) => ({
-      date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toLocaleDateString(),
-      count: Math.floor(Math.random() * 10),
-    })).reverse(),
-  },
-  codeforces: {
-    name: 'CodeForces',
-    totalSolved: 245,
-    easySolved: 100,
-    mediumSolved: 95,
-    hardSolved: 50,
-    ranking: 8654,
-    recentSubmissions: Array.from({ length: 7 }, (_, i) => ({
-      date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toLocaleDateString(),
-      count: Math.floor(Math.random() * 10),
-    })).reverse(),
-  },
-  codechef: {
-    name: 'CodeChef',
-    totalSolved: 178,
-    easySolved: 80,
-    mediumSolved: 68,
-    hardSolved: 30,
-    ranking: 12543,
-    recentSubmissions: Array.from({ length: 7 }, (_, i) => ({
-      date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toLocaleDateString(),
-      count: Math.floor(Math.random() * 10),
-    })).reverse(),
-  },
-};
+interface PlatformData {
+  name: string;
+  username: string;
+  stats?: PlatformStats;
+  error?: string;
+  loading: boolean;
+  lastUpdated?: Date;
+}
 
-export const Dashboard = () => {
-  const [selectedPlatform, setSelectedPlatform] = useState<string>('leetcode');
-  const [mobileOpen, setMobileOpen] = useState(false);
+function Dashboard() {
+  const [selectedPlatform, setSelectedPlatform] = useState<string>("leetcode");
+  const [platforms, setPlatforms] = useState<PlatformData[]>([]);
+  const [isFetching, setIsFetching] = useState(false);
+  const theme = useTheme();
 
-  const handlePlatformChange = (
-    _event: React.MouseEvent<HTMLElement>,
-    newPlatform: string
-  ) => {
-    if (newPlatform !== null) {
-      setSelectedPlatform(newPlatform);
+  useEffect(() => {
+    const savedData = localStorage.getItem('codingProfile');
+    if (savedData) {
+      const data = JSON.parse(savedData);
+      setPlatforms([
+        { name: "leetcode", username: data.leetcode, loading: true },
+        { name: "gfg", username: data.gfg, loading: true },
+        { name: "hackerrank", username: data.hackerrank, loading: false },
+        { name: "codeforces", username: data.codeforces, loading: false },
+        { name: "codechef", username: data.codechef, loading: false },
+      ]);
+    }
+  }, []);
+
+  const fetchPlatformStats = async (platform: PlatformData) => {
+    if (!platform.username) {
+      setPlatforms(prev => 
+        prev.map(p => 
+          p.name === platform.name 
+            ? { ...p, error: "Please enter a username for this platform", loading: false }
+            : p
+        )
+      );
+      return;
+    }
+
+    try {
+      setIsFetching(true);
+      setPlatforms(prev => 
+        prev.map(p => 
+          p.name === platform.name 
+            ? { ...p, loading: true, error: "" }
+            : p
+        )
+      );
+
+      let response;
+      console.log(`Fetching stats for ${platform.name} with username: ${platform.username}`);
+      
+      if (platform.name === "leetcode") {
+        try {
+          response = await axios.post('http://localhost:8000/api/leetcode/stats', { username: platform.username }, {
+            timeout: 5000,
+          });
+          console.log(`LeetCode response received`, response.data);
+        } catch (err: any) {
+          console.error('LeetCode API error:', err);
+          throw err;
+        }
+      } else if (platform.name === "gfg") {
+        try {
+          response = await axios.post('http://localhost:8000/api/gfg/stats', { username: platform.username }, {
+            timeout: 5000,
+          });
+          console.log(`GFG response received`, response.data);
+        } catch (err: any) {
+          console.error('GFG API error:', err);
+          throw err;
+        }
+      }
+      
+      setPlatforms(prev => 
+        prev.map(p => 
+          p.name === platform.name 
+            ? { ...p, stats: response.data, loading: false, error: "", lastUpdated: new Date() }
+            : p
+        )
+      );
+    } catch (err: any) {
+      console.error(`Error fetching ${platform.name} stats:`, err);
+      const errorMessage = err.response?.data?.detail || 
+        (err.message.includes('404') ? 'User not found on this platform' : 
+        (err.message.includes('timeout') ? 'Request timed out' : 
+        (err.message.includes('Network Error') ? 'Network connection error' : 
+        (err.message.includes('ECONNREFUSED') ? 'Backend server not running' : 
+        'Failed to fetch data'))));
+      
+      setPlatforms(prev => 
+        prev.map(p => 
+          p.name === platform.name 
+            ? { ...p, error: errorMessage, loading: false }
+            : p
+        )
+      );
+    } finally {
+      setIsFetching(false);
     }
   };
 
-  const platform = mockData[selectedPlatform];
+  const fetchAllPlatforms = async () => {
+    const activePlatforms = platforms.filter(p => p.username);
+    if (activePlatforms.length === 0) return;
 
-  const chartData = {
-    labels: platform.recentSubmissions.map((s) => s.date),
-    datasets: [
-      {
-        label: 'Problems Solved',
-        data: platform.recentSubmissions.map((s) => s.count),
-        borderColor: '#f44336',
-        backgroundColor: 'rgba(244, 67, 54, 0.1)',
-        tension: 0.4,
-      },
-    ],
+    await Promise.all(activePlatforms.map(platform => fetchPlatformStats(platform)));
   };
 
-  const chartOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        display: false,
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        ticks: {
-          stepSize: 1,
-        },
-      },
-    },
+  useEffect(() => {
+    const activePlatforms = platforms.filter(p => p.username);
+    if (activePlatforms.length > 0) {
+      fetchAllPlatforms();
+    }
+  }, [platforms]);
+
+  const getPlatformColor = (platform: string) => {
+    switch (platform) {
+      case "leetcode":
+        return theme.palette.primary.main;
+      case "gfg":
+        return theme.palette.secondary.main;
+      case "hackerrank":
+        return theme.palette.success.main;
+      case "codeforces":
+        return theme.palette.warning.main;
+      case "codechef":
+        return theme.palette.error.main;
+      default:
+        return theme.palette.primary.main;
+    }
   };
+
+  const getDifficultyColor = (difficulty: string) => {
+    switch (difficulty.toLowerCase()) {
+      case "easy":
+        return theme.palette.success.main;
+      case "medium":
+        return theme.palette.warning.main;
+      case "hard":
+        return theme.palette.error.main;
+      default:
+        return theme.palette.primary.main;
+    }
+  };
+
+  const renderLoadingSkeleton = () => (
+    <Grid container spacing={2}>
+      <Grid item xs={12} sm={6} md={4}>
+        <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <CardHeader
+            avatar={<Skeleton variant="circular" width={40} height={40} />}
+            title={<Skeleton variant="text" width={150} height={20} />}
+          />
+          <CardContent sx={{ flexGrow: 1 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Skeleton variant="circular" width={40} height={40} />
+              <Skeleton variant="text" width={100} height={20} />
+            </Box>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              {[...Array(3)].map((_, i) => (
+                <Box key={i} sx={{ flexGrow: 1 }}>
+                  <Skeleton variant="circular" width={40} height={40} />
+                  <Skeleton variant="text" width={80} height={20} />
+                </Box>
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
+      </Grid>
+    </Grid>
+  );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-      {/* Mobile menu button */}
-      <IconButton
-        color="inherit"
-        edge="start"
-        onClick={() => setMobileOpen(!mobileOpen)}
-        sx={{ position: 'fixed', top: 16, left: 16, display: { sm: 'none' } }}
-      >
-        {mobileOpen ? <CloseIcon /> : <MenuIcon />}
-      </IconButton>
-
-      {/* Main content */}
-      <Container maxWidth="xl" sx={{ py: 4, mt: { xs: 8, sm: 4 } }}>
-        <Grid container spacing={3}>
-          {/* Platform selector */}
-          <Grid item xs={12}>
-            <Card>
-              <CardContent>
-                <ToggleButtonGroup
-                  value={selectedPlatform}
-                  exclusive
-                  onChange={handlePlatformChange}
-                  aria-label="coding platform"
-                  sx={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 1,
-                  }}
-                >
-                  {Object.keys(mockData).map((platform) => (
-                    <ToggleButton
-                      key={platform}
-                      value={platform}
-                      sx={{
-                        flex: { xs: '1 1 auto', sm: '0 1 auto' },
-                        textTransform: 'capitalize',
-                      }}
-                    >
-                      {mockData[platform].name}
-                    </ToggleButton>
-                  ))}
-                </ToggleButtonGroup>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Stats summary */}
-          <Grid item xs={12} md={4}>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Grid container spacing={3}>
+        <Grid item xs={12}>
+          <Paper 
+            sx={{ 
+              p: 2, 
+              display: 'flex', 
+              flexDirection: 'column',
+              backgroundColor: theme.palette.background.paper,
+              borderRadius: 2,
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+            }}
+          >
+            <Tabs 
+              value={selectedPlatform} 
+              onChange={(_, value) => setSelectedPlatform(value)}
+              sx={{ mb: 2 }}
             >
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Total Problems Solved
-                  </Typography>
-                  <Typography variant="h3" color="primary" gutterBottom>
-                    {platform.totalSolved}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Ranking: #{platform.ranking}
-                  </Typography>
+              {platforms.map(platform => (
+                <Tab 
+                  key={platform.name} 
+                  value={platform.name} 
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Avatar 
+                        sx={{ 
+                          mr: 1, 
+                          bgcolor: getPlatformColor(platform.name),
+                          width: 24,
+                          height: 24,
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        {platform.name.charAt(0).toUpperCase()}
+                      </Avatar>
+                      {platform.name.charAt(0).toUpperCase() + platform.name.slice(1)}
+                    </Box>
+                  }
+                />
+              ))}
+            </Tabs>
+
+            {platforms.map(platform => {
+              if (platform.name !== selectedPlatform) return null;
+
+              if (platform.error) {
+                return (
                   <Box sx={{ mt: 2 }}>
-                    <Typography variant="body2" gutterBottom>
-                      Difficulty Breakdown
-                    </Typography>
-                    <Grid container spacing={2}>
-                      <Grid item xs={4}>
-                        <Typography variant="h6" color="success.main">
-                          {platform.easySolved}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Easy
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={4}>
-                        <Typography variant="h6" color="warning.main">
-                          {platform.mediumSolved}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Medium
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={4}>
-                        <Typography variant="h6" color="error.main">
-                          {platform.hardSolved}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Hard
-                        </Typography>
-                      </Grid>
-                    </Grid>
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                      {platform.error}
+                      <Button
+                        size="small"
+                        onClick={() => fetchPlatformStats(platform)}
+                        sx={{ ml: 2 }}
+                      >
+                        Retry
+                      </Button>
+                    </Alert>
                   </Box>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </Grid>
+                );
+              }
 
-          {/* Progress chart */}
-          <Grid item xs={12} md={8}>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Recent Activity
-                  </Typography>
-                  <Box sx={{ height: 300 }}>
-                    <Line data={chartData} options={chartOptions} />
-                  </Box>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </Grid>
+              if (platform.loading || isFetching) {
+                return renderLoadingSkeleton();
+              }
 
-          {/* Achievement progress */}
-          <Grid item xs={12}>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
-            >
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Achievement Progress
-                  </Typography>
-                  <Grid container spacing={3}>
-                    {[
-                      { name: 'Problem Solver', progress: 65 },
-                      { name: 'Consistency King', progress: 80 },
-                      { name: 'Hard Mode', progress: 45 },
-                    ].map((achievement) => (
-                      <Grid item xs={12} sm={4} key={achievement.name}>
-                        <Tooltip title={`${achievement.progress}% Complete`}>
-                          <Box>
-                            <Typography variant="body2" gutterBottom>
-                              {achievement.name}
-                            </Typography>
-                            <LinearProgress
-                              variant="determinate"
-                              value={achievement.progress}
-                              sx={{ height: 8, borderRadius: 4 }}
-                            />
+              if (!platform.stats) {
+                return null;
+              }
+
+              return (
+                <Box sx={{ mt: 2 }}>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <Card 
+                        sx={{ 
+                          height: '100%',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                          transition: 'transform 0.2s',
+                          '&:hover': {
+                            transform: 'translateY(-2px)',
+                            boxShadow: '0 8px 12px -2px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.06)'
+                          }
+                        }}
+                      >
+                        <CardHeader
+                          avatar={
+                            <Avatar 
+                              sx={{ bgcolor: getPlatformColor(platform.name) }}
+                              aria-label="Platform Stats"
+                            >
+                              {platform.name.charAt(0).toUpperCase()}
+                            </Avatar>
+                          }
+                          title={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="h6">{platform.name.charAt(0).toUpperCase() + platform.name.slice(1)}</Typography>
+                              <Tooltip title="View Profile">
+                                <IconButton 
+                                  size="small" 
+                                  component="a" 
+                                  href={platform.stats.profile_url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                >
+                                  <LinkIcon color="primary" />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
+                          }
+                        />
+                        <CardContent sx={{ flexGrow: 1 }}>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Typography variant="h5" color="primary">
+                                {platform.stats.total_solved}
+                              </Typography>
+                              <Chip
+                                label="Total Solved"
+                                color="primary"
+                                size="small"
+                                sx={{ ml: 1 }}
+                              />
+                            </Box>
+                            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexGrow: 1 }}>
+                                <Typography variant="h6" color={getDifficultyColor("easy")}>
+                                  {platform.stats.easy_solved}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Easy
+                                </Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexGrow: 1 }}>
+                                <Typography variant="h6" color={getDifficultyColor("medium")}>
+                                  {platform.stats.medium_solved}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Medium
+                                </Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexGrow: 1 }}>
+                                <Typography variant="h6" color={getDifficultyColor("hard")}>
+                                  {platform.stats.hard_solved}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Hard
+                                </Typography>
+                              </Box>
+                            </Box>
+                            {platform.stats.ranking && (
+                              <Box sx={{ display: 'flex', alignItems: 'center', mt: 2 }}>
+                                <TrendingUpIcon color="success" sx={{ mr: 1 }} />
+                                <Typography variant="body1" color="success.main">
+                                  Rank #{platform.stats.ranking}
+                                </Typography>
+                              </Box>
+                            )}
                           </Box>
-                        </Tooltip>
-                      </Grid>
-                    ))}
+                        </CardContent>
+                      </Card>
+                    </Grid>
                   </Grid>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </Grid>
+                </Box>
+              );
+            })}
+          </Paper>
         </Grid>
-      </Container>
-    </Box>
+      </Grid>
+    </Container>
   );
-};
+}
+
+export default Dashboard;

@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CssBaseline, ThemeProvider, createTheme } from "@mui/material";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import LandingPage from "./components/LandingPage/LandingPage";
-import { Dashboard } from "./components/Dashboard/Dashboard";
+import Dashboard from "./components/Dashboard/Dashboard";
 import { Achievements } from "./components/Achievements/Achievements";
 import Onboarding from './components/Onboarding/Onboarding';
+import { Box } from '@mui/material';
 
 const theme = createTheme({
   palette: {
@@ -56,68 +57,65 @@ const theme = createTheme({
       fontFamily: "Oswald, sans-serif",
       fontWeight: 600,
     },
-    body1: {
-      fontFamily: "Inter, sans-serif",
-      fontWeight: 300,
-    },
-    body2: {
-      fontFamily: "Inter, sans-serif",
-      fontWeight: 300,
-    },
-  },
-  shape: {
-    borderRadius: 8,
-  },
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: 8,
-          textTransform: "none",
-          fontWeight: 600,
-          backgroundColor: "#4338ca",
-          '&:hover': {
-            backgroundColor: "#3730a3",
-          },
-        },
-      },
-    },
-    MuiPaper: {
-      styleOverrides: {
-        root: {
-          borderRadius: 12,
-          backdropFilter: "blur(6px)",
-          backgroundColor: "rgba(30, 41, 59, 0.85)",
-        },
-      },
-    },
-    MuiIconButton: {
-      styleOverrides: {
-        root: {
-          color: "#f8fafc",
-        },
-      },
-    },
   },
 });
 
 const queryClient = new QueryClient();
 
+const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
+  const [hasError, setHasError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (hasError) {
+    return (
+      <Box
+        sx={{
+          height: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'column',
+          gap: 2,
+          p: 3,
+        }}
+      >
+        <h1>Something went wrong</h1>
+        {error && <p>{error}</p>}
+        <button
+          onClick={() => {
+            setHasError(false);
+            setError(null);
+          }}
+          style={{ padding: '8px 16px', backgroundColor: '#4338ca', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+        >
+          Try again
+        </button>
+      </Box>
+    );
+  }
+
+  return children;
+};
+
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <QueryClientProvider client={queryClient}>
-        <Router>
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/onboarding" element={<Onboarding />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/achievements" element={<Achievements />} />
-          </Routes>
-        </Router>
-      </QueryClientProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <QueryClientProvider client={queryClient}>
+          <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+            <Router>
+              <Routes>
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/onboarding" element={<Onboarding />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/achievements" element={<Achievements />} />
+              </Routes>
+            </Router>
+          </Box>
+        </QueryClientProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 
