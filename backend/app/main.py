@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api import leetcode, gfg, hackerrank
-from .api.codechef.codechef import router as codechef_router
-from .api.codeforces.codeforces import router as codeforces_router
+from api import leetcode, gfg, hackerrank
+from api.codechef.codechef import router as codechef_router
+from api.codeforces.codeforces import router as codeforces_router
 
 app = FastAPI(title="Coding Progress Dashboard API")
 

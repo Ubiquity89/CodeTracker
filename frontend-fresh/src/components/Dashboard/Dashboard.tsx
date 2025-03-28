@@ -89,15 +89,15 @@ function Dashboard() {
       try {
         let response;
         if (platform.name === "leetcode") {
-          response = await axios.post('http://localhost:8000/api/leetcode/stats', { username: platform.username });
+          response = await axios.post('http://localhost:5000/api/leetcode/stats', { username: platform.username });
         } else if (platform.name === "gfg") {
-          response = await axios.post('http://localhost:8000/api/gfg/stats', { username: platform.username });
+          response = await axios.post('http://localhost:5000/api/gfg/stats', { username: platform.username });
         } else if (platform.name === "hackerrank") {
-          response = await axios.post('http://localhost:8000/api/hackerrank/stats', { username: platform.username });
+          response = await axios.post('http://localhost:5000/api/hackerrank/stats', { username: platform.username });
         } else if (platform.name === "codechef") {
-          response = await axios.post('http://localhost:8000/api/codechef/stats', { username: platform.username });
+          response = await axios.post('http://localhost:5000/api/codechef/stats', { username: platform.username });
         } else if (platform.name === "codeforces") {
-          response = await axios.post('http://localhost:8000/api/codeforces/stats', { username: platform.username });
+          response = await axios.post('http://localhost:5000/api/codeforces/stats', { username: platform.username });
         }
 
         if (response && response.data) {
@@ -200,9 +200,10 @@ function Dashboard() {
                   </>
                 ) : (
                   <>
-                    <Grid item xs={4}><Typography variant="h6" color="success.main">{platform.stats.easy_solved}</Typography><Typography variant="body2" color="text.secondary">Easy</Typography></Grid>
-                    <Grid item xs={4}><Typography variant="h6" color="warning.main">{platform.stats.medium_solved}</Typography><Typography variant="body2" color="text.secondary">Medium</Typography></Grid>
-                    <Grid item xs={4}><Typography variant="h6" color="error.main">{platform.stats.hard_solved}</Typography><Typography variant="body2" color="text.secondary">Hard</Typography></Grid>
+                    <Grid item xs={3}><Typography variant="h6" color="success.main">{platform.stats.easy_solved}</Typography><Typography variant="body2" color="text.secondary">Easy</Typography></Grid>
+                    <Grid item xs={3}><Typography variant="h6" color="warning.main">{platform.stats.medium_solved}</Typography><Typography variant="body2" color="text.secondary">Medium</Typography></Grid>
+                    <Grid item xs={3}><Typography variant="h6" color="error.main">{platform.stats.hard_solved}</Typography><Typography variant="body2" color="text.secondary">Hard</Typography></Grid>
+                    <Grid item xs={3}><Typography variant="h6" color="primary.main">{platform.stats.total_solved}</Typography><Typography variant="body2" color="text.secondary">Total</Typography></Grid>
                   </>
                 )}
               </Grid>
